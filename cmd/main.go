@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strings"
 
 	"github.com/takin/odoo-modgen/helper"
 	t "github.com/takin/odoo-modgen/template"
@@ -17,15 +18,15 @@ type OdooModule struct {
 }
 
 func convertTemplateContent(moduleName, template string) string {
-	r, err := regexp.Compile("(\\{MOD_NAME\\})(\\{MOD_NAME_LOWER\\})")
+	moduleName = strings.ToLower(moduleName)
+	mod, err := regexp.Compile("{MOD_NAME}")
+	modLower, err := regexp.Compile("{MOD_NAME_LOWER}")
 	if err != nil {
 		fmt.Errorf("ERROR: can not compile template converter\nTemplate will be using default content")
 		return template
 	}
-	replacedTemplate := r.ReplaceAllStringFunc(template, func(res string) string {
-		fmt.Println(res)
-		return res
-	})
+	replacedTemplate := mod.ReplaceAllString(template, strings.Title(moduleName))
+	replacedTemplate = modLower.ReplaceAllString(replacedTemplate, moduleName)
 	return replacedTemplate
 }
 
@@ -46,11 +47,12 @@ func (o *OdooModule) Generate() {
 			// Jika match, maka ini adalah file, bukan direktori
 			if match {
 				for _, iv := range v {
+					content := convertTemplateContent(o.Name, iv)
 					// buat file dengan nama file sesuai dengan nilai k saat ini
 					// misal __manifest__.py
 					// dengan content berdasarkan nilai dari map["content"]
 					// dari __manifest__.py:map[string]string{"content":<file content>}
-					helper.CreateFile(projectpath+"/"+k, iv)
+					helper.CreateFile(projectpath+"/"+k, content)
 				}
 			} else {
 				newDir := projectpath + "/" + k
@@ -64,7 +66,8 @@ func (o *OdooModule) Generate() {
 				// 		"__init__.py":<init content>
 				// }
 				for ik, iv := range v {
-					helper.CreateFile(newDir+"/"+ik, iv)
+					content := convertTemplateContent(o.Name, iv)
+					helper.CreateFile(newDir+"/"+ik, content)
 				}
 			}
 		}
